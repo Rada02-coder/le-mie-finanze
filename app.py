@@ -72,4 +72,4 @@ if not df.empty:
     df["Importo"] = pd.to_numeric(df["Importo"])
     
     tot_entrate = df[df["Importo"] > 0]["Importo"].sum()
-    tot_uscite = abs(df
+    tot_uscite = abs(df)
