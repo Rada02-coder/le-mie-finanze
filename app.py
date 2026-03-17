@@ -1,73 +1,103 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import plotly.express as px
 
-# Configurazione per Mobile
-st.set_page_config(page_title="Gestione Finanze", layout="centered")
+# Configurazione Pagina
+st.set_page_config(page_title="Pocket Manager", page_icon="💳", layout="centered")
 
-st.title("💰 Il Mio Registro")
+# Stile CSS personalizzato per renderlo più moderno
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7f9; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Funzione per gestire il database CSV
+# Funzione Database
 def load_data():
     try:
-        return pd.read_csv("finanze_personali.csv")
+        df = pd.read_csv("finanze_v2.csv")
+        df['Data'] = pd.to_datetime(df['Data'])
+        return df
     except FileNotFoundError:
-        return pd.DataFrame(columns=["Data", "Tipo", "Voce", "Importo"])
+        return pd.DataFrame(columns=["Data", "Tipo", "Voce", "Importo", "Metodo", "Nota"])
 
 df = load_data()
 
-# --- SEZIONE INSERIMENTO ---
-tab1, tab2 = st.tabs(["📥 Entrate", "📤 Uscite"])
+st.title("💳 Pocket Manager")
 
-with tab1:
-    voce_entrata = st.selectbox("Seleziona Entrata", [
-        "Stipendio Brt", 
-        "Lezioni Cologno", 
-        "Lezioni Melzo", 
-        "Altre entrate"
-    ])
-    importo_e = st.number_input("Importo Entrata (€)", min_value=0.0, step=10.0, key="ent")
-    if st.button("Registra Entrata"):
-        nuovo = {"Data": datetime.now().strftime("%d-%m-%Y"), "Tipo": "Entrata", "Voce": voce_entrata, "Importo": importo_e}
+# --- INSERIMENTO MOVIMENTI ---
+with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
+    tipo = st.radio("Cosa vuoi registrare?", ["Uscita", "Entrata"], horizontal=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if tipo == "Entrata":
+            voce = st.selectbox("Voce", ["Stipendio Brt", "Lezioni Cologno", "Lezioni Melzo", "Altre entrate"])
+        else:
+            voce = st.selectbox("Voce", ["Risparmi tatuaggio (fissa)", "Risparmi personali", "Benzina", "Spese Deadfall", "Spese Noumenia", "Spese varie"])
+    
+    with col2:
+        metodo = st.selectbox("Metodo", ["💳 Carta", "💵 Contanti"])
+    
+    importo = st.number_input("Importo (€)", min_value=0.0, step=1.0)
+    nota = st.text_area("Nota (es. 'Regalo di compleanno' o 'Pieno benzina')")
+    
+    if st.button("SALVA MOVIMENTO", use_container_width=True):
+        nuovo = {
+            "Data": datetime.now(),
+            "Tipo": tipo,
+            "Voce": voce,
+            "Importo": importo if tipo == "Entrata" else -importo,
+            "Metodo": metodo,
+            "Nota": nota
+        }
         df = pd.concat([df, pd.DataFrame([nuovo])], ignore_index=True)
-        df.to_csv("finanze_personali.csv", index=False)
-        st.success(f"Segnato: {voce_entrata}")
+        df.to_csv("finanze_v2.csv", index=False)
+        st.success("Registrato con successo!")
         st.rerun()
 
-with tab2:
-    voce_uscita = st.selectbox("Seleziona Uscita", [
-        "Risparmi tatuaggio (fissa)",
-        "Risparmi personali",
-        "Benzina",
-        "Spese Deadfall",
-        "Spese Noumenia",
-        "Spese varie"
-    ])
-    importo_u = st.number_input("Importo Uscita (€)", min_value=0.0, step=5.0, key="usc")
-    if st.button("Registra Uscita"):
-        # Le uscite vengono salvate come numeri negativi per il calcolo del saldo
-        nuovo = {"Data": datetime.now().strftime("%d-%m-%Y"), "Tipo": "Uscita", "Voce": voce_uscita, "Importo": -importo_u}
-        df = pd.concat([df, pd.DataFrame([nuovo])], ignore_index=True)
-        df.to_csv("finanze_personali.csv", index=False)
-        st.success(f"Segnato: {voce_uscita}")
-        st.rerun()
+# --- RIEPILOGO MENSILE ---
+st.subheader(f"📊 Riepilogo {datetime.now().strftime('%B %Y')}")
 
-# --- RIEPILOGO STATISTICHE ---
+# Calcolo Saldo e Bilancio
+tot_entrate = df[df["Importo"] > 0]["Importo"].sum()
+tot_uscite = abs(df[df["Importo"] < 0]["Importo"].sum())
+bilancio = tot_entrate - tot_uscite
+
+c1, c2, c3 = st.columns(3)
+c1.metric("Entrate", f"{tot_entrate:.2f} €")
+c2.metric("Uscite", f"{tot_uscite:.2f} €", delta=f"-{tot_uscite:.2f}", delta_color="inverse")
+c3.metric("Bilancio", f"{bilancio:.2f} €")
+
+# --- SEZIONE RISPARMI (Voci a parte) ---
 st.divider()
-saldo = df["Importo"].sum()
-st.metric("Saldo Totale", f"{saldo:.2f} €")
+st.subheader("🎯 I Tuoi Risparmi")
 
-col1, col2 = st.columns(2)
-entrate_tot = df[df["Importo"] > 0]["Importo"].sum()
-uscite_tot = abs(df[df["Importo"] < 0]["Importo"].sum())
+tatuaggio = abs(df[df["Voce"] == "Risparmi tatuaggio (fissa)"]["Importo"].sum())
+personali = abs(df[df["Voce"] == "Risparmi personali"]["Importo"].sum())
 
-col1.info(f"Tot. Entrate\n\n{entrate_tot:.2f} €")
-col2.warning(f"Tot. Uscite\n\n{uscite_tot:.2f} €")
+col_t, col_p = st.columns(2)
+with col_t:
+    st.write(f"🎨 **Tatuaggio**: {tatuaggio:.2f} €")
+    # Esempio: Obiettivo 500€ per il tatuaggio
+    st.progress(min(tatuaggio/500, 1.0), text="Target: 500€")
 
+with col_p:
+    st.write(f"🏦 **Personali**: {personali:.2f} €")
+    st.progress(min(personali/1000, 1.0), text="Target: 1000€")
+
+# --- STORICO ---
+st.divider()
 if not df.empty:
-    with st.expander("Vedi Storico Movimenti"):
-        # Mostriamo i dati invertiti (l'ultimo inserito in alto)
-        st.dataframe(df.iloc[::-1], use_container_width=True)
-        if st.button("Cancella tutto (Reset)"):
-            pd.DataFrame(columns=["Data", "Tipo", "Voce", "Importo"]).to_csv("finanze_personali.csv", index=False)
-            st.rerun()
+    with st.expander("🗒️ Storico completo e Note"):
+        # Mostra le note chiaramente nel dataframe
+        st.dataframe(df.sort_values(by="Data", ascending=False), use_container_width=True)
+        
+        # Grafico veloce delle uscite per categoria
+        if tot_uscite > 0:
+            df_uscite = df[df["Importo"] < 0].copy()
+            df_uscite["Importo"] = abs(df_uscite["Importo"])
+            fig = px.pie(df_uscite, values='Importo', names='Voce', title='Distribuzione Uscite')
+            st.plotly_chart(fig, use_container_width=True)
