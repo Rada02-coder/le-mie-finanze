@@ -5,7 +5,7 @@ from datetime import datetime
 import plotly.express as px
 
 # --- CONFIGURAZIONE ---
-WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwYNNtAeGJUrh1WGiRac97xQyG56dWl-mlyr1rCYzfEfHnDlnulOCml3_Z2zJ5wCt4X/exec"
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzsd7D1e52RU36XtZ1e9nCWTpuIXZgvjah-RjswamliR-zeWmmD4oNU1O2qgOLDUc1y/exec"
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1aYMaJ9ZmkD4lo0-dgr3TZKhGr9_kTgKpAOq67nt7xs4/edit?gid=0#gid=0"
 
 st.set_page_config(page_title="Pocket Manager", page_icon="💳")
