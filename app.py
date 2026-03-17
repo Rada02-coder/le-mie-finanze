@@ -5,14 +5,11 @@ from datetime import datetime
 import plotly.express as px
 
 # --- CONFIGURAZIONE ---
-# 1. Incolla qui l'URL della Web App (quello che finisce con /exec)
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbx_wmDS8GV77xx9CQUj8kAz2Z7BXq_wTZVrkjRoJXLc_uZuqFl5WtEuZoYW5qqoYtJi/exec"
-# 2. Incolla qui l'URL del tuo Foglio Google normale
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1aYMaJ9ZmkD4lo0-dgr3TZKhGr9_kTgKpAOq67nt7xs4/edit?gid=0#gid=0"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1aYMaJ9ZmkD4lo0-dgr3TZKhGr9_kTgKpAOq67nt7xs4/edit?usp=sharing"
 
 st.set_page_config(page_title="Pocket Manager", page_icon="💳", layout="centered")
 
-# FIX CSS: rimosso errore unsafe_allow_True
 st.markdown("""
     <style>
     .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -22,15 +19,16 @@ st.markdown("""
 
 st.title("💳 Pocket Manager")
 
-# --- 1. FUNZIONE LETTURA DATI ---
-@st.cache_data(ttl=5) # Aggiorna ogni 5 secondi
+# --- 1. FUNZIONE LETTURA DATI (Senza Cache aggressiva) ---
 def load_data():
     try:
-        csv_url = SHEET_URL.split("/edit")[0] + "/export?format=csv"
+        # Aggiungiamo un numero casuale alla fine dell'URL per forzare Google a darci i dati nuovi
+        csv_url = SHEET_URL.split("/edit")[0] + "/export?format=csv&timestamp=" + str(datetime.now().timestamp())
         df = pd.read_csv(csv_url)
         if not df.empty:
             df['Data'] = pd.to_datetime(df['Data'])
-            df['Importo'] = pd.to_numeric(df['Importo'])
+            # Forza l'importo a essere un numero, altrimenti la somma fallisce
+            df['Importo'] = pd.to_numeric(df['Importo'], errors='coerce').fillna(0)
         return df
     except:
         return pd.DataFrame(columns=["Data", "Tipo", "Voce", "Importo", "Metodo", "Nota"])
@@ -46,15 +44,7 @@ with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
         if tipo == "Entrata":
             voce = st.selectbox("Voce", ["Stipendio Brt", "Lezioni Cologno", "Lezioni Melzo", "Altre entrate"])
         else:
-            voce = st.selectbox("Voce", [
-                "Risparmi tatuaggio (fissa)", 
-                "Risparmi personali", 
-                "Risparmi Pipi",
-                "Benzina", 
-                "Spese Deadfall", 
-                "Spese Noumenia", 
-                "Spese varie"
-            ])
+            voce = st.selectbox("Voce", ["Risparmi tatuaggio (fissa)", "Risparmi personali", "Risparmi Pipi", "Benzina", "Spese Deadfall", "Spese Noumenia", "Spese varie"])
     with col2:
         metodo = st.selectbox("Metodo", ["💳 Carta", "💵 Contanti"])
     
@@ -62,27 +52,23 @@ with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
     nota = st.text_area("Nota (opzionale)")
     
     if st.button("SALVA SUL CLOUD", use_container_width=True):
-        if WEBAPP_URL == "INCOLLA_QUI_IL_TUO_URL_DI_APPS_SCRIPT":
-            st.error("Manca l'URL della Web App!")
-        else:
-            payload = {
-                "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "Tipo": tipo,
-                "Voce": voce,
-                "Importo": importo_input if tipo == "Entrata" else -importo_input,
-                "Metodo": metodo,
-                "Nota": nota
-            }
-            try:
-                res = requests.post(WEBAPP_URL, json=payload, timeout=10)
-                if res.status_code == 200:
-                    st.success("Dato inviato con successo!")
-                    st.cache_data.clear()
-                    st.rerun()
-                else:
-                    st.error(f"Errore Google: {res.status_code}")
-            except Exception as e:
-                st.error(f"Errore di connessione: {e}")
+        payload = {
+            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Tipo": tipo,
+            "Voce": voce,
+            "Importo": importo_input if tipo == "Entrata" else -importo_input,
+            "Metodo": metodo,
+            "Nota": nota
+        }
+        try:
+            res = requests.post(WEBAPP_URL, json=payload, timeout=10)
+            if res.status_code == 200:
+                st.success("Salvato! Ricarico...")
+                st.rerun()
+            else:
+                st.error("Errore Google")
+        except:
+            st.error("Errore connessione")
 
 # --- 3. DASHBOARD E RISPARMI ---
 if not df.empty:
@@ -90,16 +76,16 @@ if not df.empty:
     
     entrate = df[df["Importo"] > 0]["Importo"].sum()
     uscite = abs(df[df["Importo"] < 0]["Importo"].sum())
-    bilancio = entrate - uscite
     
     c1, c2, c3 = st.columns(3)
     c1.metric("Entrate", f"{entrate:.2f} €")
     c2.metric("Uscite", f"{uscite:.2f} €")
-    c3.metric("Bilancio", f"{bilancio:.2f} €")
+    c3.metric("Bilancio", f"{(entrate - uscite):.2f} €")
 
     st.divider()
     st.subheader("🎯 I Tuoi Risparmi")
     
+    # TRUCCO: Usiamo .iloc per essere sicuri di prendere i valori corretti
     tot_tatuaggio = abs(df[df["Voce"] == "Risparmi tatuaggio (fissa)"]["Importo"].sum())
     tot_pipi = abs(df[df["Voce"] == "Risparmi Pipi"]["Importo"].sum())
     tot_personali = abs(df[df["Voce"] == "Risparmi personali"]["Importo"].sum())
@@ -114,10 +100,4 @@ if not df.empty:
         st.write(f"{tot_personali:.2f} €")
     with col_c:
         st.write(f"❤️ **Pipi**")
-        st.write(f"{tot_pipi:.2f} €")
-
-    st.divider()
-    with st.expander("🗒️ Storico Movimenti"):
-        st.dataframe(df.sort_values(by="Data", ascending=False), use_container_width=True)
-else:
-    st.info("Configura l'URL e inserisci dati per vedere i grafici.")
+        st.write(f"{tot_pipi:.2
