@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import sqlite3
 
-st.set_page_config(page_title="Pocket Manager Locale", page_icon="💰")
+# --- CONFIGURAZIONE PAGINA ---
+st.set_page_config(page_title="Pocket Manager Pro", page_icon="💰")
 
-# --- STILE ---
+# CSS per far leggere bene i numeri
 st.markdown("""
     <style>
     [data-testid="stMetric"] { background-color: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333; }
@@ -12,20 +14,48 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("💰 Pocket Manager")
-st.info("Nota: I dati sono temporanei. Scarica il file prima di chiudere l'app per non perderli!")
+# --- FUNZIONI DATABASE (SQLite locale) ---
+def init_db():
+    conn = sqlite3.connect('finance_db.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS movimenti 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT, tipo TEXT, voce TEXT, importo REAL)''')
+    conn.commit()
+    conn.close()
 
-# --- INIZIALIZZAZIONE MEMORIA ---
-if 'dati' not in st.session_state:
-    st.session_state.dati = pd.DataFrame(columns=["Data", "Tipo", "Voce", "Importo"])
+def aggiungi_dato(data, tipo, voce, importo):
+    conn = sqlite3.connect('finance_db.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO movimenti (data, tipo, voce, importo) VALUES (?, ?, ?, ?)", 
+              (data, tipo, voce, importo))
+    conn.commit()
+    conn.close()
+
+def carica_dati():
+    conn = sqlite3.connect('finance_db.db')
+    df = pd.read_sql_query("SELECT * FROM movimenti", conn)
+    conn.close()
+    return df
+
+def reset_db():
+    conn = sqlite3.connect('finance_db.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM movimenti")
+    conn.commit()
+    conn.close()
+
+# Inizializza il database all'avvio
+init_db()
+
+st.title("💰 Pocket Manager")
 
 # --- INSERIMENTO ---
-with st.expander("➕ AGGIUNGI MOVIMENTO", expanded=True):
-    t1, t2 = st.columns(2)
-    with t1:
-        tipo = st.radio("Categoria", ["Uscita", "Entrata", "Risparmio"], horizontal=True)
-    with t2:
-        data_mov = st.date_input("Data", datetime.now())
+with st.expander("➕ REGISTRA NUOVA VOCE", expanded=True):
+    col_t, col_d = st.columns(2)
+    with col_t:
+        tipo = st.radio("Cosa registri?", ["Uscita", "Entrata", "Risparmio"], horizontal=True)
+    with col_d:
+        data_mov = st.date_input("Data", datetime.now()).strftime("%Y-%m-%d")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -38,45 +68,40 @@ with st.expander("➕ AGGIUNGI MOVIMENTO", expanded=True):
     with c2:
         importo = st.number_input("Importo (€)", min_value=0.0, step=1.0)
 
-    if st.button("AGGIUNGI ALLA LISTA", use_container_width=True):
+    if st.button("SALVA PER SEMPRE", width='stretch'):
         valore = importo if tipo == "Entrata" else -importo
-        nuova_riga = pd.DataFrame([[data_mov, tipo, voce, valore]], columns=["Data", "Tipo", "Voce", "Importo"])
-        st.session_state.dati = pd.concat([st.session_state.dati, nuova_riga], ignore_index=True)
-        st.success("Aggiunto!")
+        aggiungi_dato(data_mov, tipo, voce, valore)
+        st.success("Salvato nel database!")
+        st.rerun()
 
 # --- DASHBOARD ---
-if not st.session_state.dati.empty:
-    df = st.session_state.dati
+df = carica_dati()
+
+if not df.empty:
     st.divider()
     
     col1, col2 = st.columns(2)
-    entrate = df[df['Importo'] > 0]['Importo'].sum()
-    uscite = abs(df[df['Importo'] < 0]['Importo'].sum())
+    entrate = df[df['importo'] > 0]['importo'].sum()
+    uscite_tot = abs(df[df['importo'] < 0]['importo'].sum())
     
     col1.metric("Tot. Entrate", f"{entrate:.2f}€")
-    col2.metric("Tot. Uscite/Risp", f"{uscite:.2f}€")
+    col2.metric("Tot. Uscite/Risp", f"{uscite_tot:.2f}€")
 
     # Target Tatuaggio
-    tat = abs(df[df['Voce'] == 'Tatuaggio']['Importo'].sum())
-    st.write(f"🎨 **Tatuaggio**: {tat:.2f} / 600€")
+    tat = abs(df[df['voce'] == 'Tatuaggio']['importo'].sum())
+    st.subheader(f"🎯 Tatuaggio: {tat:.2f} / 600€")
     st.progress(min(tat/600, 1.0))
 
     st.divider()
-    st.subheader("🗒️ Riepilogo Attuale")
-    st.dataframe(df, use_container_width=True)
+    with st.expander("🗒️ Storico Movimenti Salva"):
+        st.dataframe(df.sort_values("data", ascending=False), width='stretch')
+        
+        # Tasto per scaricare comunque un backup Excel se serve
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Scarica Backup CSV", csv, "finanze.csv", "text/csv")
 
-    # --- TASTO SCARICA ---
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 SCARICA REPORT (CSV)",
-        data=csv,
-        file_name=f"report_spese_{datetime.now().strftime('%d_%m')}.csv",
-        mime="text/csv",
-        use_container_width=True
-    )
-    
-    if st.button("🗑️ CANCELLA TUTTO E RICOMINCIA"):
-        st.session_state.dati = pd.DataFrame(columns=["Data", "Tipo", "Voce", "Importo"])
+    if st.button("⚠️ CANCELLA TUTTI I DATI"):
+        reset_db()
         st.rerun()
 else:
-    st.write("Ancora nessun dato inserito.")
+    st.info("Il database è vuoto. Inizia a inserire le tue spese!")
