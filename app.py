@@ -9,7 +9,7 @@ st.set_page_config(page_title="Pocket Manager Cloud", page_icon="💳", layout="
 
 # 2. Collegamento a Google Sheets
 # IMPORTANTE: Incolla qui l'URL del tuo foglio tra le virgolette
-URL_FOGLIO = "INCOLLA_QUI_IL_TUO_URL_DI_GOOGLE_SHEETS"
+URL_FOGLIO = "https://docs.google.com/spreadsheets/d/1aYMaJ9ZmkD4lo0-dgr3TZKhGr9_kTgKpAOq67nt7xs4/edit?usp=sharing"
 
 # Creiamo la connessione
 conn = st.connection("gsheets", type=GSheetsConnection)
