@@ -12,7 +12,7 @@ st.markdown("""
     .main { background-color: #f5f7f9; }
     .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     </style>
-    """, unsafe_allow_True=True)
+    """, unsafe_allow_html=True)
 
 # 3. Funzione per caricare/salvare i dati
 def load_data():
@@ -20,7 +20,7 @@ def load_data():
         df = pd.read_csv("finanze_v2.csv")
         df['Data'] = pd.to_datetime(df['Data'])
         return df
-    except FileNotFoundError:
+    except (FileNotFoundError, pd.errors.EmptyDataError):
         return pd.DataFrame(columns=["Data", "Tipo", "Voce", "Importo", "Metodo", "Nota"])
 
 df = load_data()
@@ -69,22 +69,26 @@ with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
 # 5. RIEPILOGO MENSILE
 st.subheader(f"📊 Bilancio {datetime.now().strftime('%B %Y')}")
 
-tot_entrate = df[df["Importo"] > 0]["Importo"].sum()
-tot_uscite = abs(df[df["Importo"] < 0]["Importo"].sum())
-bilancio = tot_entrate - tot_uscite
+# Calcoli con protezione se i dati sono vuoti
+if not df.empty:
+    tot_entrate = df[df["Importo"] > 0]["Importo"].sum()
+    tot_uscite = abs(df[df["Importo"] < 0]["Importo"].sum())
+    bilancio = tot_entrate - tot_uscite
+else:
+    tot_entrate = tot_uscite = bilancio = 0.0
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Entrate", f"{tot_entrate:.2f} €")
-c2.metric("Uscite", f"{tot_uscite:.2f} €", delta=f"-{tot_uscite:.2f}", delta_color="inverse")
+c2.metric("Uscite", f"{tot_uscite:.2f} €", delta=f"-{tot_uscite:.2f}" if tot_uscite > 0 else None, delta_color="inverse")
 c3.metric("Bilancio", f"{bilancio:.2f} €")
 
 # 6. SEZIONE RISPARMI
 st.divider()
 st.subheader("🎯 Obiettivi e Risparmi")
 
-tatuaggio = abs(df[df["Voce"] == "Risparmi tatuaggio (fissa)"]["Importo"].sum())
-personali = abs(df[df["Voce"] == "Risparmi personali"]["Importo"].sum())
-pipi = abs(df[df["Voce"] == "Risparmi Pipi"]["Importo"].sum())
+tatuaggio = abs(df[df["Voce"] == "Risparmi tatuaggio (fissa)"]["Importo"].sum()) if not df.empty else 0
+personali = abs(df[df["Voce"] == "Risparmi personali"]["Importo"].sum()) if not df.empty else 0
+pipi = abs(df[df["Voce"] == "Risparmi Pipi"]["Importo"].sum()) if not df.empty else 0
 
 col_t, col_p, col_pp = st.columns(3)
 
