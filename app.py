@@ -6,7 +6,7 @@ import plotly.express as px
 
 # --- CONFIGURAZIONE ---
 # 1. Incolla l'URL della Web App (quello che finisce con /exec)
-WEBAPP_URL = "https://script.google.com/macros/s/AKfycbygBgw8Jn9iU1EO8MJ0JruuEcYSXJUaYBh2xFvB_0dpWIpkQM6e_z6jEimA7Nz31bMq/exec"
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwYNNtAeGJUrh1WGiRac97xQyG56dWl-mlyr1rCYzfEfHnDlnulOCml3_Z2zJ5wCt4X/exec"
 # 2. Incolla l'URL del tuo Foglio Google normale
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1aYMaJ9ZmkD4lo0-dgr3TZKhGr9_kTgKpAOq67nt7xs4/edit?gid=0#gid=0"
 
