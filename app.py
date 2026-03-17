@@ -5,14 +5,14 @@ from datetime import datetime
 import plotly.express as px
 
 # --- CONFIGURAZIONE ---
-# 1. Incolla l'URL della Web App (Apps Script) che finisce con /exec
+# 1. Incolla qui l'URL della Web App (quello che finisce con /exec)
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbx_wmDS8GV77xx9CQUj8kAz2Z7BXq_wTZVrkjRoJXLc_uZuqFl5WtEuZoYW5qqoYtJi/exec"
-# 2. Incolla l'URL del tuo Foglio Google normale
+# 2. Incolla qui l'URL del tuo Foglio Google normale
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1aYMaJ9ZmkD4lo0-dgr3TZKhGr9_kTgKpAOq67nt7xs4/edit?gid=0#gid=0"
 
 st.set_page_config(page_title="Pocket Manager", page_icon="💳", layout="centered")
 
-# Stile CSS per rendere l'app più bella
+# FIX CSS: rimosso errore unsafe_allow_True
 st.markdown("""
     <style>
     .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -23,10 +23,9 @@ st.markdown("""
 st.title("💳 Pocket Manager")
 
 # --- 1. FUNZIONE LETTURA DATI ---
-@st.cache_data(ttl=10) # Aggiorna i dati ogni 10 secondi
+@st.cache_data(ttl=5) # Aggiorna ogni 5 secondi
 def load_data():
     try:
-        # Trasformiamo l'URL per scaricare il CSV direttamente
         csv_url = SHEET_URL.split("/edit")[0] + "/export?format=csv"
         df = pd.read_csv(csv_url)
         if not df.empty:
@@ -63,28 +62,31 @@ with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
     nota = st.text_area("Nota (opzionale)")
     
     if st.button("SALVA SUL CLOUD", use_container_width=True):
-        payload = {
-            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Tipo": tipo,
-            "Voce": voce,
-            "Importo": importo_input if tipo == "Entrata" else -importo_input,
-            "Metodo": metodo,
-            "Nota": nota
-        }
-        try:
-            res = requests.post(WEBAPP_URL, json=payload)
-            if res.status_code == 200:
-                st.success("Dato inviato con successo!")
-                st.cache_data.clear() # Svuota la cache per vedere subito il dato
-                st.rerun()
-            else:
-                st.error("Errore nell'invio a Google Sheets.")
-        except:
-            st.error("Errore di connessione. Controlla l'URL della Web App.")
+        if WEBAPP_URL == "INCOLLA_QUI_IL_TUO_URL_DI_APPS_SCRIPT":
+            st.error("Manca l'URL della Web App!")
+        else:
+            payload = {
+                "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Tipo": tipo,
+                "Voce": voce,
+                "Importo": importo_input if tipo == "Entrata" else -importo_input,
+                "Metodo": metodo,
+                "Nota": nota
+            }
+            try:
+                res = requests.post(WEBAPP_URL, json=payload, timeout=10)
+                if res.status_code == 200:
+                    st.success("Dato inviato con successo!")
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.error(f"Errore Google: {res.status_code}")
+            except Exception as e:
+                st.error(f"Errore di connessione: {e}")
 
 # --- 3. DASHBOARD E RISPARMI ---
 if not df.empty:
-    st.subheader(f"📊 Riepilogo {datetime.now().strftime('%B %Y')}")
+    st.subheader(f"📊 Riepilogo Mensile")
     
     entrate = df[df["Importo"] > 0]["Importo"].sum()
     uscite = abs(df[df["Importo"] < 0]["Importo"].sum())
@@ -95,11 +97,9 @@ if not df.empty:
     c2.metric("Uscite", f"{uscite:.2f} €")
     c3.metric("Bilancio", f"{bilancio:.2f} €")
 
-    # SEZIONE RISPARMI (Corretta con abs() per far salire i totali)
     st.divider()
     st.subheader("🎯 I Tuoi Risparmi")
     
-    # Calcoliamo i totali dei risparmi indipendentemente dal segno
     tot_tatuaggio = abs(df[df["Voce"] == "Risparmi tatuaggio (fissa)"]["Importo"].sum())
     tot_pipi = abs(df[df["Voce"] == "Risparmi Pipi"]["Importo"].sum())
     tot_personali = abs(df[df["Voce"] == "Risparmi personali"]["Importo"].sum())
@@ -116,15 +116,8 @@ if not df.empty:
         st.write(f"❤️ **Pipi**")
         st.write(f"{tot_pipi:.2f} €")
 
-    # STORICO E GRAFICO
     st.divider()
     with st.expander("🗒️ Storico Movimenti"):
         st.dataframe(df.sort_values(by="Data", ascending=False), use_container_width=True)
-        
-        df_uscite = df[df["Importo"] < 0].copy()
-        if not df_uscite.empty:
-            df_uscite["Importo"] = abs(df_uscite["Importo"])
-            fig = px.pie(df_uscite, values='Importo', names='Voce', title='Dove spendi di più')
-            st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("Benvenuto! Registra la tua prima operazione per attivare i grafici.")
+    st.info("Configura l'URL e inserisci dati per vedere i grafici.")
