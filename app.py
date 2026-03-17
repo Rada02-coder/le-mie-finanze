@@ -3,10 +3,10 @@ import pandas as pd
 from datetime import datetime
 import plotly.express as px
 
-# Configurazione Pagina
+# 1. Configurazione Pagina
 st.set_page_config(page_title="Pocket Manager", page_icon="💳", layout="centered")
 
-# Stile CSS per rendere l'app più moderna
+# 2. Stile Grafico (CSS)
 st.markdown("""
     <style>
     .main { background-color: #f5f7f9; }
@@ -14,7 +14,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Funzione Database
+# 3. Funzione per caricare/salvare i dati
 def load_data():
     try:
         df = pd.read_csv("finanze_v2.csv")
@@ -27,7 +27,7 @@ df = load_data()
 
 st.title("💳 Pocket Manager")
 
-# --- INSERIMENTO MOVIMENTI ---
+# 4. SEZIONE INSERIMENTO
 with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
     tipo = st.radio("Cosa vuoi registrare?", ["Uscita", "Entrata"], horizontal=True)
     
@@ -66,7 +66,7 @@ with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
         st.success("Registrato con successo!")
         st.rerun()
 
-# --- RIEPILOGO MENSILE ---
+# 5. RIEPILOGO MENSILE
 st.subheader(f"📊 Bilancio {datetime.now().strftime('%B %Y')}")
 
 tot_entrate = df[df["Importo"] > 0]["Importo"].sum()
@@ -78,7 +78,7 @@ c1.metric("Entrate", f"{tot_entrate:.2f} €")
 c2.metric("Uscite", f"{tot_uscite:.2f} €", delta=f"-{tot_uscite:.2f}", delta_color="inverse")
 c3.metric("Bilancio", f"{bilancio:.2f} €")
 
-# --- SEZIONE RISPARMI ---
+# 6. SEZIONE RISPARMI
 st.divider()
 st.subheader("🎯 Obiettivi e Risparmi")
 
@@ -95,4 +95,21 @@ with col_t:
 
 with col_p:
     st.write(f"🏦 **Personali**")
-    st.
+    st.write(f"{personali:.2f} €")
+    st.caption("Senza limite")
+
+with col_pp:
+    st.write(f"💧 **PIPI**")
+    st.write(f"{pipi:.2f} €")
+
+# 7. STORICO E GRAFICI
+st.divider()
+if not df.empty:
+    with st.expander("🗒️ Storico Movimenti e Note"):
+        st.dataframe(df.sort_values(by="Data", ascending=False), use_container_width=True)
+        
+        df_uscite = df[df["Importo"] < 0].copy()
+        if not df_uscite.empty:
+            df_uscite["Importo"] = abs(df_uscite["Importo"])
+            fig = px.pie(df_uscite, values='Importo', names='Voce', title='Dove finiscono i tuoi soldi?')
+            st.plotly_chart(fig, use_container_width=True)
