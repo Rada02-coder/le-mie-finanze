@@ -12,7 +12,7 @@ st.markdown("""
     .main { background-color: #f5f7f9; }
     .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     </style>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_True=True)
 
 # 3. Funzione per caricare/salvare i dati
 def load_data():
@@ -39,7 +39,7 @@ with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
             voce = st.selectbox("Voce", [
                 "Risparmi tatuaggio (fissa)", 
                 "Risparmi personali", 
-                "Risparmi PIPI",
+                "Risparmi Pipi",
                 "Benzina", 
                 "Spese Deadfall", 
                 "Spese Noumenia", 
@@ -84,7 +84,7 @@ st.subheader("🎯 Obiettivi e Risparmi")
 
 tatuaggio = abs(df[df["Voce"] == "Risparmi tatuaggio (fissa)"]["Importo"].sum())
 personali = abs(df[df["Voce"] == "Risparmi personali"]["Importo"].sum())
-pipi = abs(df[df["Voce"] == "Risparmi PIPI"]["Importo"].sum())
+pipi = abs(df[df["Voce"] == "Risparmi Pipi"]["Importo"].sum())
 
 col_t, col_p, col_pp = st.columns(3)
 
@@ -99,7 +99,7 @@ with col_p:
     st.caption("Senza limite")
 
 with col_pp:
-    st.write(f"💧 **PIPI**")
+    st.write(f"❤️ **Pipi**")
     st.write(f"{pipi:.2f} €")
 
 # 7. STORICO E GRAFICI
