@@ -6,7 +6,7 @@ import plotly.express as px
 # Configurazione Pagina
 st.set_page_config(page_title="Pocket Manager", page_icon="💳", layout="centered")
 
-# Stile CSS personalizzato per renderlo più moderno
+# Stile CSS per rendere l'app più moderna
 st.markdown("""
     <style>
     .main { background-color: #f5f7f9; }
@@ -36,20 +36,28 @@ with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
         if tipo == "Entrata":
             voce = st.selectbox("Voce", ["Stipendio Brt", "Lezioni Cologno", "Lezioni Melzo", "Altre entrate"])
         else:
-            voce = st.selectbox("Voce", ["Risparmi tatuaggio (fissa)", "Risparmi personali", "Benzina", "Spese Deadfall", "Spese Noumenia", "Spese varie"])
+            voce = st.selectbox("Voce", [
+                "Risparmi tatuaggio (fissa)", 
+                "Risparmi personali", 
+                "Risparmi PIPI",
+                "Benzina", 
+                "Spese Deadfall", 
+                "Spese Noumenia", 
+                "Spese varie"
+            ])
     
     with col2:
         metodo = st.selectbox("Metodo", ["💳 Carta", "💵 Contanti"])
     
-    importo = st.number_input("Importo (€)", min_value=0.0, step=1.0)
-    nota = st.text_area("Nota (es. 'Regalo di compleanno' o 'Pieno benzina')")
+    import_val = st.number_input("Importo (€)", min_value=0.0, step=1.0)
+    nota = st.text_area("Nota (opzionale)")
     
     if st.button("SALVA MOVIMENTO", use_container_width=True):
         nuovo = {
             "Data": datetime.now(),
             "Tipo": tipo,
             "Voce": voce,
-            "Importo": importo if tipo == "Entrata" else -importo,
+            "Importo": import_val if tipo == "Entrata" else -import_val,
             "Metodo": metodo,
             "Nota": nota
         }
@@ -59,9 +67,8 @@ with st.expander("➕ REGISTRA NUOVA OPERAZIONE", expanded=False):
         st.rerun()
 
 # --- RIEPILOGO MENSILE ---
-st.subheader(f"📊 Riepilogo {datetime.now().strftime('%B %Y')}")
+st.subheader(f"📊 Bilancio {datetime.now().strftime('%B %Y')}")
 
-# Calcolo Saldo e Bilancio
 tot_entrate = df[df["Importo"] > 0]["Importo"].sum()
 tot_uscite = abs(df[df["Importo"] < 0]["Importo"].sum())
 bilancio = tot_entrate - tot_uscite
@@ -71,33 +78,21 @@ c1.metric("Entrate", f"{tot_entrate:.2f} €")
 c2.metric("Uscite", f"{tot_uscite:.2f} €", delta=f"-{tot_uscite:.2f}", delta_color="inverse")
 c3.metric("Bilancio", f"{bilancio:.2f} €")
 
-# --- SEZIONE RISPARMI (Voci a parte) ---
+# --- SEZIONE RISPARMI ---
 st.divider()
-st.subheader("🎯 I Tuoi Risparmi")
+st.subheader("🎯 Obiettivi e Risparmi")
 
 tatuaggio = abs(df[df["Voce"] == "Risparmi tatuaggio (fissa)"]["Importo"].sum())
 personali = abs(df[df["Voce"] == "Risparmi personali"]["Importo"].sum())
+pipi = abs(df[df["Voce"] == "Risparmi PIPI"]["Importo"].sum())
 
-col_t, col_p = st.columns(2)
+col_t, col_p, col_pp = st.columns(3)
+
 with col_t:
-    st.write(f"🎨 **Tatuaggio**: {tatuaggio:.2f} €")
-    # Esempio: Obiettivo 500€ per il tatuaggio
-    st.progress(min(tatuaggio/500, 1.0), text="Target: 500€")
+    st.write(f"🎨 **Tatuaggio**")
+    st.write(f"{tatuaggio:.2f} / 600 €")
+    st.progress(min(tatuaggio/600, 1.0))
 
 with col_p:
-    st.write(f"🏦 **Personali**: {personali:.2f} €")
-    st.progress(min(personali/1000, 1.0), text="Target: 1000€")
-
-# --- STORICO ---
-st.divider()
-if not df.empty:
-    with st.expander("🗒️ Storico completo e Note"):
-        # Mostra le note chiaramente nel dataframe
-        st.dataframe(df.sort_values(by="Data", ascending=False), use_container_width=True)
-        
-        # Grafico veloce delle uscite per categoria
-        if tot_uscite > 0:
-            df_uscite = df[df["Importo"] < 0].copy()
-            df_uscite["Importo"] = abs(df_uscite["Importo"])
-            fig = px.pie(df_uscite, values='Importo', names='Voce', title='Distribuzione Uscite')
-            st.plotly_chart(fig, use_container_width=True)
+    st.write(f"🏦 **Personali**")
+    st.
