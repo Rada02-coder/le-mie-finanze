@@ -4,9 +4,9 @@ import requests
 from datetime import datetime
 
 # URL della Web App che hai appena creato su Google
-WEBAPP_URL = "INCOLLA_QUI_IL_TUO_URL_DI_APPS_SCRIPT"
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbx_wmDS8GV77xx9CQUj8kAz2Z7BXq_wTZVrkjRoJXLc_uZuqFl5WtEuZoYW5qqoYtJi/exec"
 # URL del foglio normale (per leggere i dati)
-SHEET_URL = "INCOLLA_QUI_IL_TUO_URL_DI_GOOGLE_SHEETS"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1aYMaJ9ZmkD4lo0-dgr3TZKhGr9_kTgKpAOq67nt7xs4/edit?gid=0#gid=0"
 
 st.set_page_config(page_title="Pocket Manager", page_icon="💳")
 
